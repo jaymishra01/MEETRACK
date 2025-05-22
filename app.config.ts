@@ -6,10 +6,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'meetrack',
   version: '1.0.0',
   orientation: 'portrait',
-  icon: './assets/images/icon.png',
+  icon: './assets/images/default-icon.png',
   userInterfaceStyle: 'automatic',
   splash: {
-    image: './assets/images/splash.png',
+    image: './assets/images/default-splash.png',
     resizeMode: 'contain',
     backgroundColor: '#ffffff'
   },
@@ -20,7 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: './assets/images/adaptive-icon.png',
+      foregroundImage: './assets/images/default-adaptive-icon.png',
       backgroundColor: '#ffffff'
     },
     package: 'com.meetrack.app'
@@ -28,7 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     bundler: 'metro',
     output: 'static',
-    favicon: './assets/images/favicon.png'
+    favicon: './assets/images/default-favicon.png'
   },
   extra: {
     eas: {
