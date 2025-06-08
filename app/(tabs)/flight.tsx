@@ -17,12 +17,66 @@ import Animated, {
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
+interface PackageOption {
+  id: number;
+  name: string;
+  weight: string;
+  price: number;
+}
+
+interface PackageOptionItemProps {
+  option: PackageOption;
+  isSelected: boolean;
+  showPrice?: boolean;
+  onPress: (id: number) => void;
+}
+
+function PackageOptionItem({ option, isSelected, showPrice = false, onPress }: PackageOptionItemProps) {
+  const scale = useSharedValue(1);
+  
+  const packageStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
+  const handlePackagePressIn = () => {
+    scale.value = withSpring(0.95);
+  };
+
+  const handlePackagePressOut = () => {
+    scale.value = withSpring(1);
+  };
+
+  return (
+    <AnimatedTouchableOpacity
+      style={[styles.packageOption, isSelected && styles.selectedPackageOption, packageStyle]}
+      onPressIn={handlePackagePressIn}
+      onPressOut={handlePackagePressOut}
+      onPress={() => onPress(option.id)}>
+      <View style={styles.packageHeader}>
+        <Text style={[styles.packageOptionText, isSelected && styles.selectedPackageOptionText]}>
+          {option.name} ({option.weight})
+        </Text>
+        {showPrice && (
+          <Text style={[styles.packagePrice, isSelected && styles.selectedPackageOptionText]}>
+            ₹{option.price}
+          </Text>
+        )}
+      </View>
+      {showPrice && (
+        <Text style={[styles.packageDescription, isSelected && styles.selectedPackageOptionText]}>
+          Includes insurance and handling
+        </Text>
+      )}
+    </AnimatedTouchableOpacity>
+  );
+}
+
 export default function FlightScreen() {
   const [activeTab, setActiveTab] = useState<'offer' | 'request'>('offer');
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [shipmentType, setShipmentType] = useState<'domestic' | 'international' | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     pickupCity: '',
     deliveryCity: '',
@@ -101,7 +155,7 @@ export default function FlightScreen() {
     });
   });
 
-  const PACKAGE_OPTIONS = [
+  const PACKAGE_OPTIONS: PackageOption[] = [
     { id: 1, name: 'Small', weight: '1-5kg', price: 2500 },
     { id: 2, name: 'Medium', weight: '5-10kg', price: 5000 },
     { id: 3, name: 'Large', weight: '10-20kg', price: 7500 }
@@ -132,45 +186,8 @@ export default function FlightScreen() {
     setShowDatePicker(true);
   };
 
-  const renderPackageOption = (option: any, isSelected: boolean, showPrice: boolean = false) => {
-    const scale = useSharedValue(1);
-    
-    const packageStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }]
-    }));
-
-    const handlePackagePressIn = () => {
-      scale.value = withSpring(0.95);
-    };
-
-    const handlePackagePressOut = () => {
-      scale.value = withSpring(1);
-    };
-
-    return (
-      <AnimatedTouchableOpacity
-        key={option.id}
-        style={[styles.packageOption, isSelected && styles.selectedPackageOption, packageStyle]}
-        onPressIn={handlePackagePressIn}
-        onPressOut={handlePackagePressOut}
-        onPress={() => setSelectedPackage(option.id)}>
-        <View style={styles.packageHeader}>
-          <Text style={[styles.packageOptionText, isSelected && styles.selectedPackageOptionText]}>
-            {option.name} ({option.weight})
-          </Text>
-          {showPrice && (
-            <Text style={[styles.packagePrice, isSelected && styles.selectedPackageOptionText]}>
-              ₹{option.price}
-            </Text>
-          )}
-        </View>
-        {showPrice && (
-          <Text style={[styles.packageDescription, isSelected && styles.selectedPackageOptionText]}>
-            Includes insurance and handling
-          </Text>
-        )}
-      </AnimatedTouchableOpacity>
-    );
+  const handlePackageSelect = (id: number) => {
+    setSelectedPackage(id);
   };
 
   const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
@@ -408,7 +425,14 @@ export default function FlightScreen() {
               </TouchableOpacity>
 
               <Text style={styles.packageSectionTitle}>Available Space</Text>
-              {PACKAGE_OPTIONS.map(option => renderPackageOption(option, selectedPackage === option.id))}
+              {PACKAGE_OPTIONS.map(option => (
+                <PackageOptionItem
+                  key={option.id}
+                  option={option}
+                  isSelected={selectedPackage === option.id}
+                  onPress={handlePackageSelect}
+                />
+              ))}
             </View>
           )}
 
@@ -515,7 +539,15 @@ export default function FlightScreen() {
               </TouchableOpacity>
 
               <Text style={styles.packageSectionTitle}>Package Size</Text>
-              {PACKAGE_OPTIONS.map(option => renderPackageOption(option, selectedPackage === option.id, true))}
+              {PACKAGE_OPTIONS.map(option => (
+                <PackageOptionItem
+                  key={option.id}
+                  option={option}
+                  isSelected={selectedPackage === option.id}
+                  showPrice={true}
+                  onPress={handlePackageSelect}
+                />
+              ))}
 
               <View style={styles.inputContainer}>
                 <Package size={20} color="#666" />
