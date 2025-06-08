@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform, ActivityIndicator } from 'react-native';
 import { CirclePlus as PlusCircle, Clock, Bell, Users, Check, Square, SquareCheck as CheckSquare, Share2, CircleAlert as AlertCircle, Building2, Briefcase, CreditCard } from 'lucide-react-native';
 import Modal from 'react-native-modal';
 import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
+import { router } from 'expo-router';
 
 interface Contact {
   id: string;
@@ -52,12 +53,46 @@ export default function RemindersScreen() {
   const [businessCards, setBusinessCards] = useState<BusinessCard[]>([]);
   const [dueDate, setDueDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    fetchReminders();
-    fetchContacts();
-    fetchBusinessCards();
+    checkAuthAndLoadData();
   }, []);
+
+  const checkAuthAndLoadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        router.replace('/(auth)/login');
+        return;
+      }
+
+      if (!session?.user) {
+        console.log('No authenticated user, redirecting to login');
+        router.replace('/(auth)/login');
+        return;
+      }
+
+      setIsAuthenticated(true);
+
+      // Load all data concurrently once authentication is confirmed
+      await Promise.all([
+        fetchReminders(),
+        fetchContacts(),
+        fetchBusinessCards()
+      ]);
+    } catch (error) {
+      console.error('Error during authentication check:', error);
+      Alert.alert('Error', 'Failed to load data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchReminders = async () => {
     try {
@@ -88,8 +123,6 @@ export default function RemindersScreen() {
     } catch (error) {
       console.error('Error fetching reminders:', error);
       Alert.alert('Error', 'Failed to load tasks');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -104,6 +137,7 @@ export default function RemindersScreen() {
       setContacts(data || []);
     } catch (error) {
       console.error('Error fetching contacts:', error);
+      Alert.alert('Error', 'Failed to load contacts');
     }
   };
 
@@ -126,6 +160,7 @@ export default function RemindersScreen() {
       setBusinessCards(data || []);
     } catch (error) {
       console.error('Error fetching business cards:', error);
+      Alert.alert('Error', 'Failed to load business cards');
     }
   };
 
@@ -199,6 +234,25 @@ export default function RemindersScreen() {
     setSelectedCard(null);
   };
 
+  // Show loading spinner while checking authentication and loading data
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0066cc" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // If not authenticated, show message (though user should be redirected)
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Please log in to access tasks</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -214,11 +268,7 @@ export default function RemindersScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Active Tasks</Text>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading tasks...</Text>
-          </View>
-        ) : reminders.length === 0 ? (
+        {reminders.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No active tasks</Text>
           </View>
@@ -440,12 +490,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   loadingContainer: {
-    padding: 20,
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f8f9fa',
   },
   loadingText: {
     fontSize: 16,
     color: '#666',
+    marginTop: 12,
   },
   emptyContainer: {
     padding: 20,
