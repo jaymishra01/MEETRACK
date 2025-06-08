@@ -324,7 +324,7 @@ export default function AccountScreen() {
                 onPress={() => validateGST(formData.gst_number)}
                 disabled={gstValidation.isValidating || !formData.gst_number}>
                 {gstValidation.isValidating ? (
-                  <ActivityIndicator color="#ffffff\" size="small" />
+                  <ActivityIndicator color="#ffffff" size="small" />
                 ) : (
                   <Text style={styles.verifyButtonText}>Verify</Text>
                 )}
