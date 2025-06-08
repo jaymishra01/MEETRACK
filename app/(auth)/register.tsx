@@ -336,7 +336,7 @@ export default function RegisterScreen() {
                 onPress={() => validateGST(formData.gstNumber)}
                 disabled={gstValidation.isValidating || !formData.gstNumber}>
                 {gstValidation.isValidating ? (
-                  <ActivityIndicator color="#ffffff" size="small" />
+                  <ActivityIndicator color="#ffffff\" size="small" />
                 ) : (
                   <Text style={styles.verifyButtonText}>Verify</Text>
                 )}
