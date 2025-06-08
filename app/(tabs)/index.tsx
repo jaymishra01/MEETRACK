@@ -1,36 +1,124 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { Link } from 'expo-router';
-import { Share2, Phone, FileText, QrCode, Smartphone, X } from 'lucide-react-native';
+import { Share2, Phone, FileText, QrCode, Smartphone, X, LogOut } from 'lucide-react-native';
 import Modal from 'react-native-modal';
 import QRCode from 'react-native-qrcode-svg';
-import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  company: string;
+  position: string;
+  phone_number: string;
+  country_code: string;
+  gst_number: string;
+  wallet_balance: number;
+}
 
 export default function ProfileScreen() {
+  const { user, signOut } = useAuth();
   const [isShareModalVisible, setShareModalVisible] = useState(false);
-  const profileImage = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80";
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [networkCount, setNetworkCount] = useState(0);
   
+  const profileImage = "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=256&h=256&fit=crop";
+
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+      fetchNetworkCount();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    try {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNetworkCount = async () => {
+    try {
+      // This would be the count of contacts/connections
+      // For now, we'll use a placeholder
+      setNetworkCount(127);
+    } catch (error) {
+      console.error('Error fetching network count:', error);
+    }
+  };
+
   const handleShare = () => {
     setShareModalVisible(true);
   };
 
-  const shareData = {
-    name: "John Doe",
-    title: "Senior Product Manager",
-    company: "TechCorp Industries",
-    email: "john.doe@techcorp.com",
-    phone: "+1 (555) 123-4567"
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
+
+  const shareData = {
+    name: profile?.full_name || 'User',
+    title: profile?.position || 'Professional',
+    company: profile?.company || 'Company',
+    email: profile?.email || '',
+    phone: profile?.phone_number ? `${profile.country_code} ${profile.phone_number}` : '',
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0066cc" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Failed to load profile</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Image
-          source={{ uri: profileImage }}
-          style={styles.profileImage}
-        />
-        <Text style={styles.name}>John Doe</Text>
-        <Text style={styles.title}>Senior Product Manager</Text>
-        <Text style={styles.company}>TechCorp Industries</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.profileSection}>
+            <Image
+              source={{ uri: profileImage }}
+              style={styles.profileImage}
+            />
+            <Text style={styles.name}>{profile.full_name}</Text>
+            <Text style={styles.title}>{profile.position}</Text>
+            <Text style={styles.company}>{profile.company}</Text>
+          </View>
+          <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
+            <LogOut size={20} color="#666" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.actionButtons}>
@@ -57,17 +145,40 @@ export default function ProfileScreen() {
       <View style={styles.statsContainer}>
         <Link href="/network" asChild>
           <TouchableOpacity style={styles.statCard}>
-            <Text style={styles.statNumber}>127</Text>
+            <Text style={styles.statNumber}>{networkCount}</Text>
             <Text style={styles.statLabel}>NETWORK</Text>
           </TouchableOpacity>
         </Link>
 
         <Link href="/finance" asChild>
           <TouchableOpacity style={styles.statCard}>
-            <Text style={styles.statNumber}>₹12,450</Text>
-            <Text style={styles.statLabel}>NETWORTH</Text>
+            <Text style={styles.statNumber}>₹{(profile.wallet_balance || 0).toLocaleString()}</Text>
+            <Text style={styles.statLabel}>WALLET</Text>
           </TouchableOpacity>
         </Link>
+      </View>
+
+      <View style={styles.profileDetails}>
+        <Text style={styles.sectionTitle}>Profile Information</Text>
+        
+        <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Email</Text>
+          <Text style={styles.detailValue}>{profile.email}</Text>
+        </View>
+
+        {profile.phone_number && (
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Phone</Text>
+            <Text style={styles.detailValue}>{profile.country_code} {profile.phone_number}</Text>
+          </View>
+        )}
+
+        {profile.gst_number && (
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>GST Number</Text>
+            <Text style={styles.detailValue}>{profile.gst_number}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.recentActivity}>
@@ -125,12 +236,48 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  header: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    backgroundColor: '#f8f9fa',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#dc2626',
+  },
+  header: {
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+  },
+  profileSection: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  signOutButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
   },
   profileImage: {
     width: 120,
@@ -197,13 +344,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  recentActivity: {
+  profileDetails: {
+    backgroundColor: '#ffffff',
+    margin: 20,
     padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
+  },
+  detailItem: {
+    marginBottom: 12,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '500',
+  },
+  recentActivity: {
+    padding: 20,
   },
   activityItem: {
     backgroundColor: '#ffffff',

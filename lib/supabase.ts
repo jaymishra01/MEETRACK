@@ -11,7 +11,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: false, // Disable for mobile apps
+    flowType: 'pkce'
   }
 });
 
@@ -59,4 +60,61 @@ export async function createTransaction(
     });
 
   if (error) throw error;
+}
+
+// Database types for better TypeScript support
+export interface Database {
+  public: {
+    Tables: {
+      users: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string | null;
+          company: string | null;
+          position: string | null;
+          gst_number: string | null;
+          wallet_balance: number;
+          created_at: string;
+          updated_at: string;
+          country: string | null;
+          pincode: string | null;
+          country_code: string | null;
+          phone_number: string | null;
+          phone_verified: boolean;
+          phone_verification_code: string | null;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          full_name?: string | null;
+          company?: string | null;
+          position?: string | null;
+          gst_number?: string | null;
+          wallet_balance?: number;
+          country?: string | null;
+          pincode?: string | null;
+          country_code?: string | null;
+          phone_number?: string | null;
+          phone_verified?: boolean;
+          phone_verification_code?: string | null;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          full_name?: string | null;
+          company?: string | null;
+          position?: string | null;
+          gst_number?: string | null;
+          wallet_balance?: number;
+          country?: string | null;
+          pincode?: string | null;
+          country_code?: string | null;
+          phone_number?: string | null;
+          phone_verified?: boolean;
+          phone_verification_code?: string | null;
+        };
+      };
+    };
+  };
 }

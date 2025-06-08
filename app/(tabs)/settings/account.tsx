@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Building2, FileCheck, CircleAlert as AlertCircle, User, Mail, Phone, MapPin } from 'lucide-react-native';
+import { ArrowLeft, Building2, FileCheck, CircleAlert as AlertCircle, User, Mail, Phone, MapPin, Globe } from 'lucide-react-native';
 import { verifyGST } from '@/lib/gst';
 import { supabase } from '@/lib/supabase';
 import { COUNTRIES } from '@/lib/countries';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserProfile {
   full_name: string;
@@ -20,7 +21,9 @@ interface UserProfile {
 
 export default function AccountScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<UserProfile>({
     full_name: '',
@@ -42,86 +45,49 @@ export default function AccountScreen() {
   });
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      
-      if (authError) throw authError;
-      
-      if (!session) {
-        // If no session exists, redirect to login
-        router.replace('/(auth)/login');
-        return;
-      }
-
-      // If authenticated, fetch user profile
-      await fetchUserProfile();
-    } catch (error) {
-      console.error('Auth error:', error);
-      router.replace('/(auth)/login');
+    if (user) {
+      fetchUserProfile();
     }
-  };
+  }, [user]);
 
   const fetchUserProfile = async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!user) throw new Error('No authenticated user');
+      if (!user) return;
 
       const { data, error: profileError } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
-        .maybeSingle();
+        .single();
 
       if (profileError) throw profileError;
 
-      // If no profile exists, create one
-      if (!data) {
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: user.id,
-            email: user.email,
-            full_name: '',
-            country: 'IN',
-            country_code: '+91',
-          });
+      if (data) {
+        setFormData({
+          full_name: data.full_name || '',
+          email: data.email || '',
+          company: data.company || '',
+          position: data.position || '',
+          gst_number: data.gst_number || '',
+          country: data.country || 'IN',
+          pincode: data.pincode || '',
+          phone_number: data.phone_number || '',
+          country_code: data.country_code || '+91',
+        });
 
-        if (insertError) throw insertError;
-
-        setFormData(prev => ({
-          ...prev,
-          email: user.email || '',
-        }));
-        return;
-      }
-
-      setFormData({
-        full_name: data.full_name || '',
-        email: data.email || '',
-        company: data.company || '',
-        position: data.position || '',
-        gst_number: data.gst_number || '',
-        country: data.country || 'IN',
-        pincode: data.pincode || '',
-        phone_number: data.phone_number || '',
-        country_code: data.country_code || '+91',
-      });
-
-      if (data.gst_number) {
-        setGstValidation(prev => ({
-          ...prev,
-          isValid: true,
-          businessName: data.company,
-        }));
+        if (data.gst_number) {
+          setGstValidation(prev => ({
+            ...prev,
+            isValid: true,
+            businessName: data.company,
+          }));
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
       setError(error instanceof Error ? error.message : 'Failed to load profile data');
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -192,8 +158,6 @@ export default function AccountScreen() {
     setError(null);
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
       if (!user) throw new Error('No authenticated user');
 
       const { error: updateError } = await supabase
@@ -212,6 +176,7 @@ export default function AccountScreen() {
 
       if (updateError) throw updateError;
 
+      Alert.alert('Success', 'Profile updated successfully!');
       router.back();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to update profile');
@@ -219,6 +184,15 @@ export default function AccountScreen() {
       setLoading(false);
     }
   };
+
+  if (initialLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0066cc" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -253,12 +227,9 @@ export default function AccountScreen() {
           <View style={styles.inputContainer}>
             <Mail size={20} color="#666" />
             <TextInput
-              style={styles.input}
+              style={[styles.input, styles.disabledInput]}
               placeholder="Email"
               value={formData.email}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
-              keyboardType="email-address"
-              autoCapitalize="none"
               editable={false}
             />
           </View>
@@ -299,6 +270,16 @@ export default function AccountScreen() {
           </View>
 
           <View style={styles.inputContainer}>
+            <Globe size={20} color="#666" />
+            <TextInput
+              style={styles.input}
+              placeholder="Country"
+              value={COUNTRIES.find(c => c.code === formData.country)?.name || 'India'}
+              editable={false}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
             <MapPin size={20} color="#666" />
             <TextInput
               style={styles.input}
@@ -334,19 +315,21 @@ export default function AccountScreen() {
                 maxLength={15}
               />
             </View>
-            <TouchableOpacity
-              style={[
-                styles.verifyButton,
-                (gstValidation.isValidating || !formData.gst_number) && styles.verifyButtonDisabled
-              ]}
-              onPress={() => validateGST(formData.gst_number)}
-              disabled={gstValidation.isValidating || !formData.gst_number}>
-              {gstValidation.isValidating ? (
-                <ActivityIndicator color="#ffffff" size="small" />
-              ) : (
-                <Text style={styles.verifyButtonText}>Verify</Text>
-              )}
-            </TouchableOpacity>
+            {formData.gst_number && (
+              <TouchableOpacity
+                style={[
+                  styles.verifyButton,
+                  (gstValidation.isValidating || !formData.gst_number) && styles.verifyButtonDisabled
+                ]}
+                onPress={() => validateGST(formData.gst_number)}
+                disabled={gstValidation.isValidating || !formData.gst_number}>
+                {gstValidation.isValidating ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <Text style={styles.verifyButtonText}>Verify</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           {gstValidation.error && (
@@ -397,10 +380,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
+    paddingTop: 60,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
   },
@@ -449,6 +444,9 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
+  },
+  disabledInput: {
+    color: '#999',
   },
   phoneContainer: {
     flexDirection: 'row',
