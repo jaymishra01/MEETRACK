@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { CircleUser as UserCircle, DollarSign, Bell, Settings } from 'lucide-react-native';
+import { CircleUser as UserCircle, DollarSign, Bell, Settings, HandCoins } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -19,6 +19,13 @@ export default function TabLayout() {
         options={{
           title: 'Master',
           tabBarIcon: ({ color, size }) => <UserCircle size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="loans"
+        options={{
+          title: 'Loans',
+          tabBarIcon: ({ color, size }) => <HandCoins size={size} color={color} />,
         }}
       />
       <Tabs.Screen

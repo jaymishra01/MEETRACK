@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (session && inAuthGroup) {
       // User is signed in and in auth group, redirect to main app
       router.replace('/(tabs)');
-    } else if (!session && !inAuthGroup) {
+    } else if (!session && !inAuthGroup && segments[0] !== '+not-found') {
       // User is not signed in and not in auth group, redirect to login
       router.replace('/(auth)/login');
     }
